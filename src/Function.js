@@ -1,6 +1,8 @@
 import { parse } from 'node-html-parser';
 import validator from 'validator';
-import { isEmailAddress } from './Validator';
+import { isImprintUrl, isImprintLink } from './Validator';
+
+const taglist = ['a', 'div', 'table', 'p'];
 
 //config html parser
 export function parseHtml(html) {
@@ -15,55 +17,92 @@ export function parseHtml(html) {
     });
 }
 
-export function getImprintUrl(parsedHtml) {
-    let found = false;
-    let strUrl = "";
-    let url = "";
+export function getImprintUrl(sourcecode, url) {
 
-    const linkList = parsedHtml.querySelectorAll('a');
+    //parse page to object
+    let parsedHtml = parseHtml(sourcecode);
 
-    //link list
-    for (let j = linkList.length; j > 0; j--) {
-        if (found) { break; }
+    //find imprint URL
+    let imprintUrl = findImprintUrl(parsedHtml);
 
-        const link = linkList[j - 1];
-        const linkChilNodes = link.childNodes;
-
-        if (linkChilNodes !== []) {
-
-            //childNode list
-            for (let k = 0; k < linkChilNodes.length; k++) {
-                if (found) { break; }
-
-                const childNode = linkChilNodes[k];
-                let rawText = childNode.rawText;
-
-                if (rawText.startsWith("\n")) {
-                    let str = rawText.split("\n");
-                    rawText = str[1];
-                }
-
-                let str = rawText.trim();
-                rawText = str;
-
-                if (rawText == "Impressum"
-                    || rawText == "IMPRESSUM"
-                    || rawText == "Imprint"
-                    || rawText == "IMPRINT"
-                    || rawText == "imprint") {
-                    found = true;
-
-                    const parentNode = childNode.parentNode;
-                    const attrs = parentNode.rawAttrs;
-                    url = parseHref(attrs);
-                }
-            }
-        }
+    //check if found imprint
+    if (!isImprintUrl(url)) {
+        imprintUrl = url;
     }
 
-    //url = parseUrl(strUrl, websiteUrl);
+    //combine page URL and imprint URL
+    let combinedUrl = combineUrl(imprintUrl, url);
+
+    return combinedUrl;
+}
+
+export function findImprintUrl(parsedHtml) {
+    let url = "";
+
+    //select tag
+    const linkList = parsedHtml.querySelectorAll(taglist[0]);
+
+    //get Imprint Link in Tag
+    url = getLinkFromTagList(linkList);
 
     return url;
+}
+
+export function getLinkFromTagList(linkList) {
+    let url = "";
+    let found = false;
+
+    for (let index = linkList.length; index > 0; index--) {
+        if (found) { break; }
+
+        const link = linkList[index - 1];
+        const childNodes = link.childNodes;
+
+        if (childNodes !== []) {
+
+            //childNode list
+            let values = getLinkFromChildNodeList(childNodes, found);
+            url = values[0];
+            found = values[1];
+        }
+    }
+    return url;
+}
+
+export function getLinkFromChildNodeList(childNodes, found) {
+    let url = "";
+
+    for (let index = 0; index < childNodes.length; index++) {
+        if (found) { break; }
+
+        const childNode = childNodes[index];
+        let rawText = childNode.rawText;
+
+        rawText = formatText(rawText);
+
+        if (isImprintLink(rawText)) {
+            found = true;
+            const parentNode = childNode.parentNode;
+            const attrs = parentNode.rawAttrs;
+            url = parseHref(attrs);
+        }
+    }
+    return [url, found];
+}
+
+export function formatText(text) {
+
+    //remove break lines
+    if (text.startsWith("\n")) {
+        let split = text.split("\n");
+        text = split[1];
+    }
+
+    //trim space
+    let trim = text.trim();
+    text = trim;
+    
+    return text;
 }
 
 export function parseHref(attrs) {
@@ -99,7 +138,7 @@ export function parseHref(attrs) {
 }
 
 //get complete urllink to Imprint url
-export function parseUrl(strUrl, websiteUrl) {
+export function combineUrl(strUrl, websiteUrl) {
     if (strUrl.startsWith("http")) { return strUrl; }
 
     let url = "";
@@ -139,19 +178,17 @@ export function removeDuplicates(arr) {
     return arr.filter((value, index) => arr.indexOf(value) === index);
 }
 
-export function getImprintInformation(obj, tempImprint) {
-    let imprint = {
-        "Straße": "",
-        "Plz": "",
-        "Stadt": "",
-        "Telefon": "",
-        "Fax": "",
-        "Email": ""
-    }
+export function getImprintInformation(sourcecode, imprint = {
+    "Straße": "",
+    "Plz": "",
+    "Stadt": "",
+    "Telefon": "",
+    "Fax": "",
+    "Email": ""
+}) {
 
-    if (imprint !== tempImprint) {
-        imprint = tempImprint;
-    }
+    //parse imprint page to object
+    let obj = parseHtml(sourcecode);
 
     const divList = obj.querySelectorAll('div');
 

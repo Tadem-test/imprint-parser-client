@@ -1,105 +1,138 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FormControl, Select, MenuItem, Card } from '@material-ui/core';
 import Table from './components/Table';
-import { parse } from 'node-html-parser';
 import { v4 as uuidv4 } from 'uuid';
 
-import { parseHtml, getImprintUrl, getImprintInformation, isFilled, parseUrl } from './Function';
+import {
+  Avatar,
+  Box,
+  Button,
+  Checkbox,
+  Container,
+  CssBaseline,
+  FormControl,
+  FormControlLabel,
+  Grid,
+  InputLabel,
+  makeStyles,
+  MenuItem,
+  OutlinedInput,
+  Select,
+  TextField,
+  Typography,
+} from '@material-ui/core';
+
+import CodeOutlinedIcon from '@material-ui/icons/CodeOutlined';
+
+import {
+  getImprintInformation,
+  getImprintUrl,
+} from './Function';
 
 import './App.css';
 
 const API_URL = "http://localhost:5000/api";
 
+const useStyles = makeStyles((theme) => ({
+  paper: {
+    marginTop: theme.spacing(8),
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+  },
+  avatar: {
+    margin: theme.spacing(1),
+    backgroundColor: theme.palette.primary.main,
+  },
+  formControl: {
+    minWidth: '100%',
+    marginTop: theme.spacing(3),
+  },
+  button: {
+    margin: theme.spacing(3, 0, 2),
+  },
+}));
+
+function Copyright() {
+  return (
+    <Typography variant="body2" color="textSecondary" align="center">
+      {'Copyright © '}
+      {' Talha Hüseyin Demirel '}
+      {new Date().getFullYear()}
+      {'.'}
+    </Typography>
+  );
+}
+
 function App() {
   const [urlList, setUrlList] = useState([]);
   const [selectedUrl, setSelectedUrl] = useState();
-  const [html, setHtml] = useState();
   const [imprint, setImprint] = useState();
+  const [showInput, setShowInput] = useState(false);
+
+  const classes = useStyles();
 
   useEffect(() => {
     fetch(`${API_URL}/urlList`)
       .then(res => res.json())
       .then(data => {
-        console.log(data);
-        setSelectedUrl(data[0]);
         setUrlList(data);
       })
   }, [])
 
-  /*    useEffect(() => {
-      if(urlList !==[]) {
-        var url = urlList[1];
-        var u = url;
-        console.log(u);
-        setSelectedUrl(u);
-      }
-    },[selectedUrl]) */
 
-  const onURLChange = async (e) => {
-    const url = e.target.value;
+  const onURLChange = (e) => {
+    const changedUrl = e.target.value;
+    setSelectedUrl(changedUrl);
+  }
+
+  function toggleCheckBox() {
+    if (showInput) {
+      setShowInput(false);
+    }
+    else {
+      setShowInput(true);
+    }
+  }
+
+  const handleOnClick = async () => {
+    const url = selectedUrl;
     let sourcecode = "";
 
-    //const url = "https://www.salesviewer.com/de/";
-    //const url ="https://www.nwowhv.de/c/index.php/de/";
-    //fetch start page sourcecode
+    //fetch sourcecode
     await fetch(`${API_URL}/fetchHtml?url=${url}`, { mode: 'cors' })
       .then(res => res.text())
       .then(data => {
         sourcecode = data;
       })
-
-    setSelectedUrl(url);
-
-    //parse page to object
-    let parsedHtml = parseHtml(sourcecode);
-
-    //locate footer
-    let imprintUrl = getImprintUrl(parsedHtml);
-
-    //check if found imprint
-    if (imprintUrl === "" || imprintUrl === "#") {
-      imprintUrl = url;
-    }
-
-    let parsedUrl = parseUrl(imprintUrl, url);
-
-    console.log(parsedUrl);
+    
+    //get Imprint Url
+    let imprintUrl = getImprintUrl(sourcecode,url);
 
     //fetch imprint page sourcecode
-    await fetch(`${API_URL}/fetchHtml?url=${parsedUrl}`, { mode: 'cors' })
+    await fetch(`${API_URL}/fetchHtml?url=${imprintUrl}`, { mode: 'cors' })
       .then(res => res.text())
       .then(data => {
         sourcecode = data;
       })
 
-    //parse imprint page to object
-    parsedHtml = parseHtml(sourcecode);
-
     //get imprint information
-    //setImprint(getImprintInformation(imprintObj));
-    let imprintInformation = getImprintInformation(parsedHtml, {
-      "Straße": "",
-      "Plz": "",
-      "Stadt": "",
-      "Telefon": "",
-      "Fax": "",
-      "Email": ""
-    });
-    console.log(imprintInformation);
+    let imprintInformation = getImprintInformation(sourcecode);
 
     //problem wenn hälfte der daten geladen sind sucht nochmal
-    if (isFilled(imprintInformation) === false) {
-      let secondUrl = imprintUrl + "/";
-      await fetch(`http://localhost:5000/api/fetchHtml?url=${secondUrl}`, { mode: 'cors' })
+    /* if (isFilled(imprintInformation) === false) {
+      let tempUrl = imprintUrl + "/";
+
+      //fetch imprint page sourcecode
+      await fetch(`http://localhost:5000/api/fetchHtml?url=${tempUrl}`, { mode: 'cors' })
         .then(res => res.text())
         .then(data => {
           sourcecode = data;
         })
 
+      //parse imprint page to object
       parsedHtml = parseHtml(sourcecode);
 
-      imprintInformation = getImprintInformation(parsedHtml,imprintInformation);
-
+      imprintInformation = getImprintInformation(parsedHtml, imprintInformation);
       console.log("2:");
       console.log(imprintInformation);
     }
@@ -110,40 +143,91 @@ function App() {
         .then(data => {
           sourcecode = data;
         })
-
       parsedHtml = parseHtml(sourcecode);
-
-      imprintInformation = getImprintInformation(parsedHtml,imprintInformation);
-
+      imprintInformation = getImprintInformation(parsedHtml, imprintInformation);
       console.log("3:");
       console.log(imprintInformation);
-    }
-
-
-
-    //console.log(imprintInformation);
+    } */
+    setImprint(imprintInformation);
   }
 
   return (
-    <>
-      <div>
-        <FormControl>
-          <Select variant="outlined" value={selectedUrl} onChange={onURLChange}>
-            {urlList.map(url => (
-              <MenuItem key={uuidv4()} value={url.url}>{url.url}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-        {imprint === undefined ?
-          ""
-          : <Card>
-            {console.log(imprint)}
-            <h3>Impressum:</h3>
-            <Table imprint={imprint}></Table>
-          </Card>}
-      </div>
-    </>
+      <Container component="main" maxWidth="xs">
+        <CssBaseline />
+        <div className={classes.paper}>
+          <Avatar variant="rounded" className={classes.avatar}>
+            <CodeOutlinedIcon />
+          </Avatar>
+          <Typography component="h1" variant="h5">
+            Impress Parser
+          </Typography>
+          <Grid container spacing={2}>
+            <Grid item xs={12}>
+              <FormControl variant="filled" className={classes.formControl}>
+                <InputLabel htmlFor="filled-inputUrl">Select URL</InputLabel>
+                <Select
+                  value={selectedUrl}
+                  onChange={onURLChange}
+                  input={<OutlinedInput
+                    name="inputUrl"
+                    id="outlined-inputUrl"
+                  />}
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {urlList.map(url => (
+                    <MenuItem key={uuidv4()} value={url.url}>{url.url}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12}>
+              <FormControlLabel
+                control={<Checkbox value={showInput} checked={showInput} onChange={toggleCheckBox} color="primary" />}
+                label="Choose if you want to enter an other URL"
+              />
+            </Grid>
+            {showInput ?
+              <Grid item xs={12}>
+                <TextField
+                  variant="outlined"
+                  required
+                  fullWidth
+                  id="urlField"
+                  label="Enter URL"
+                  name="urlField"
+                  autoComplete="urlField"
+                />
+              </Grid>
+              : null
+            }
+          </Grid>
+          <Button
+            fullWidth
+            variant="contained"
+            color="primary"
+            className={classes.button}
+            onClick={async () => { await handleOnClick(); }}
+          >
+            Fetch Imprint Data
+          </Button>
+          {imprint ?
+            <Grid item xs={12}>
+              <Typography component="h5" variant="h5" align="center">
+                Imprint Information:
+                </Typography>
+              <Table imprint={imprint}></Table>
+            </Grid>
+            : null
+          }
+        </div>
+        <Box mt={5}>
+          <Copyright />
+        </Box>
+      </Container>
   );
 }
 
 export default App;
+
