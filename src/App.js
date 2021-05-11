@@ -17,11 +17,14 @@ import {
   MenuItem,
   OutlinedInput,
   Select,
+  Snackbar,
   TextField,
   Typography,
 } from '@material-ui/core';
 
 import CodeOutlinedIcon from '@material-ui/icons/CodeOutlined';
+
+import MuiAlert from '@material-ui/lab/Alert';
 
 import {
   getImprintInformation,
@@ -29,7 +32,7 @@ import {
   parseHtml,
 } from './Function';
 
-import { 
+import {
   isFilled,
 } from './Validator';
 
@@ -68,11 +71,18 @@ function Copyright() {
   );
 }
 
+function Alert(props) {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+}
+
 function App() {
   const [urlList, setUrlList] = useState([]);
   const [selectedUrl, setSelectedUrl] = useState("");
   const [imprint, setImprint] = useState();
   const [showInput, setShowInput] = useState(false);
+  const [openAlert,setOpenAlert] = useState(false);
+
+  const urlInputRef = useRef(null);
 
   const classes = useStyles();
 
@@ -93,6 +103,7 @@ function App() {
   function toggleCheckBox() {
     if (showInput) {
       setShowInput(false);
+      urlInputRef.current.value = null;
     }
     else {
       setShowInput(true);
@@ -100,7 +111,16 @@ function App() {
   }
 
   const handleOnClick = async () => {
-    const url = selectedUrl;
+
+    let url = "";
+
+    if (urlInputRef.current !== null) {
+      url = urlInputRef.current.value;
+    }
+    else {
+      url = selectedUrl;
+    }
+
     let sourcecode = "";
 
     //fetch sourcecode
@@ -109,9 +129,9 @@ function App() {
       .then(data => {
         sourcecode = data;
       })
-    
+
     //get Imprint Url
-    let imprintUrl = getImprintUrl(sourcecode,url);
+    let imprintUrl = getImprintUrl(sourcecode, url);
 
     //fetch imprint page sourcecode
     await fetch(`${API_URL}/fetchHtml?url=${imprintUrl}`, { mode: 'cors' })
@@ -152,85 +172,103 @@ function App() {
       imprintInformation = getImprintInformation(parsedHtml, imprintInformation);
       console.log("3:");
       console.log(imprintInformation);
-    } 
+    }
     setImprint(imprintInformation);
+
+    if(isFilled(imprintInformation)===false){
+      setOpenAlert(true);
+    }
+  }
+
+  const handleOnCloseAlert = (event, reason) => {
+    if (reason === 'clickaway') {
+      return;
+    }
+
+    setOpenAlert(false);
   }
 
   return (
-      <Container component="main" maxWidth="xs">
-        <CssBaseline />
-        <div className={classes.paper}>
-          <Avatar variant="rounded" className={classes.avatar}>
-            <CodeOutlinedIcon />
-          </Avatar>
-          <Typography component="h1" variant="h5">
-            Impress Parser
+    <Container component="main" maxWidth="xs">
+      <CssBaseline />
+      <div className={classes.paper}>
+        <Avatar variant="rounded" className={classes.avatar}>
+          <CodeOutlinedIcon />
+        </Avatar>
+        <Typography component="h1" variant="h5">
+          Impress Parser
           </Typography>
-          <Grid container spacing={2}>
-            <Grid item xs={12}>
-              <FormControl variant="filled" className={classes.formControl}>
-                <InputLabel htmlFor="filled-inputUrl">Select URL</InputLabel>
-                <Select
-                  value={selectedUrl}
-                  onChange={onURLChange}
-                  input={<OutlinedInput
-                    name="inputUrl"
-                    id="outlined-inputUrl"
-                  />}
-                >
-                  <MenuItem value="">
-                    <em>None</em>
-                  </MenuItem>
-                  {urlList.map(url => (
-                    <MenuItem key={uuidv4()} value={url.url}>{url.url}</MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={<Checkbox value={showInput} checked={showInput} onChange={toggleCheckBox} color="primary" />}
-                label="Choose if you want to enter an other URL"
-              />
-            </Grid>
-            {showInput ?
-              <Grid item xs={12}>
-                <TextField
-                  variant="outlined"
-                  required
-                  fullWidth
-                  id="urlField"
-                  label="Enter URL"
-                  name="urlField"
-                  autoComplete="urlField"
-                />
-              </Grid>
-              : null
-            }
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <FormControl variant="filled" className={classes.formControl}>
+              <InputLabel htmlFor="filled-inputUrl">Select URL</InputLabel>
+              <Select
+                value={selectedUrl}
+                onChange={onURLChange}
+                input={<OutlinedInput
+                  name="inputUrl"
+                  id="outlined-inputUrl"
+                />}
+              >
+                <MenuItem value="">
+                  <em>None</em>
+                </MenuItem>
+                {urlList.map(url => (
+                  <MenuItem key={uuidv4()} value={url.url}>{url.url}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Grid>
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            className={classes.button}
-            onClick={async () => { await handleOnClick(); }}
-          >
-            Fetch Imprint Data
-          </Button>
-          {imprint ?
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={<Checkbox value={showInput} checked={showInput} onChange={toggleCheckBox} color="primary" />}
+              label="Choose if you want to enter an other URL"
+            />
+          </Grid>
+          {showInput ?
             <Grid item xs={12}>
-              <Typography component="h5" variant="h5" align="center">
-                Imprint Information:
-                </Typography>
-              <Table imprint={imprint}></Table>
+              <TextField
+                inputRef={urlInputRef}
+                variant="outlined"
+                required
+                fullWidth
+                id="urlField"
+                label="Enter URL"
+                name="urlField"
+                autoComplete="urlField"
+              />
             </Grid>
             : null
           }
-        </div>
-        <Box mt={5}>
-          <Copyright />
-        </Box>
-      </Container>
+        </Grid>
+        <Button
+          fullWidth
+          variant="contained"
+          color="primary"
+          className={classes.button}
+          onClick={async () => { await handleOnClick(); }}
+        >
+          Fetch Imprint Data
+          </Button>
+        {imprint ?
+          <Grid item xs={12}>
+            <Typography component="h5" variant="h5" align="center">
+              Imprint Information:
+                </Typography>
+            <Table imprint={imprint}></Table>
+          </Grid>
+          : null
+        }
+      </div>
+      <Box mt={5}>
+        <Copyright />
+      </Box>
+      <Snackbar open={openAlert} autoHideDuration={6000} onClose={handleOnCloseAlert}>
+        <Alert onClose={handleOnCloseAlert} severity="error">
+          Can't find imprint information on: {selectedUrl}
+        </Alert>
+      </Snackbar>
+    </Container>
   );
 }
 
