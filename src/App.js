@@ -265,7 +265,7 @@ function App() {
       </Box>
       <Snackbar open={openAlert} autoHideDuration={6000} onClose={handleOnCloseAlert}>
         <Alert onClose={handleOnCloseAlert} severity="error">
-          Can't find imprint information on: {selectedUrl}
+          Information is missing on: {selectedUrl}
         </Alert>
       </Snackbar>
     </Container>
@@ -273,4 +273,3 @@ function App() {
 }
 
 export default App;
-

@@ -147,7 +147,7 @@ export function getImprintInformation(sourcecode, imprint = {
         const row = value.split("\n");
 
         for (let j = 0; j < row.length; j++) {
-            const col = row[j];
+            const col = htmlDecode( row[j]);
             const colEl = col.split(" ");
 
             for (let k = 0; k < colEl.length; k++) {
@@ -163,15 +163,14 @@ export function getImprintInformation(sourcecode, imprint = {
                     if (validator.isPostalCode(el[1], 'DE') === true && imprint.Plz === "") {
                         imprint.Plz = htmlDecode(el[1]);
                         if (row[j].includes(el[1])&&row[j].includes(",")) {
-                            console.log(row[j]);
+
                             const r = row[j];
                             const rEl = r.split(",");
                             imprint.Straße= htmlDecode(rEl[0]);
 
-                            console.log(rEl);
                             let str = rEl[1].replace(colEl[k],"");
                             let s = str.replace(rEl[0],"")
-                            console.log(s);
+
                             imprint.Stadt = s.trim();
                         }
                         else {
@@ -191,10 +190,9 @@ export function getImprintInformation(sourcecode, imprint = {
                             const rEl = r.split(",");
                             imprint.Straße= htmlDecode(rEl[0]);
 
-                            console.log(rEl);
                             let str = rEl[1].replace(colEl[k],"");
                             let s = str.replace(rEl[0],"")
-                            console.log(s);
+
                             imprint.Stadt = s.trim();
                         }
                         else {
@@ -305,16 +303,13 @@ export function getImprintInformation(sourcecode, imprint = {
             for (let j = 0; j < rawAttrs.length; j++) {
                 const hrefList = rawAttrs[j];
                 if (hrefList.startsWith('href="mailto:')) {
-                    console.log(hrefList);
                     const href = hrefList.split('"');
-                    console.log(href[1]);
                     const possibleEmail = href[1].split('mailto:');
-                    console.log(possibleEmail[1]);
                     imprint.Email = possibleEmail[1];
                 }
             }
         }
     }
-    console.log(imprint);
+
     return imprint;
 }
