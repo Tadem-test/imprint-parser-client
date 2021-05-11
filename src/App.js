@@ -26,7 +26,12 @@ import CodeOutlinedIcon from '@material-ui/icons/CodeOutlined';
 import {
   getImprintInformation,
   getImprintUrl,
+  parseHtml,
 } from './Function';
+
+import { 
+  isFilled,
+} from './Validator';
 
 import './App.css';
 
@@ -65,7 +70,7 @@ function Copyright() {
 
 function App() {
   const [urlList, setUrlList] = useState([]);
-  const [selectedUrl, setSelectedUrl] = useState();
+  const [selectedUrl, setSelectedUrl] = useState("");
   const [imprint, setImprint] = useState();
   const [showInput, setShowInput] = useState(false);
 
@@ -119,7 +124,7 @@ function App() {
     let imprintInformation = getImprintInformation(sourcecode);
 
     //problem wenn hälfte der daten geladen sind sucht nochmal
-    /* if (isFilled(imprintInformation) === false) {
+    if (isFilled(imprintInformation) === false) {
       let tempUrl = imprintUrl + "/";
 
       //fetch imprint page sourcecode
@@ -130,7 +135,7 @@ function App() {
         })
 
       //parse imprint page to object
-      parsedHtml = parseHtml(sourcecode);
+      let parsedHtml = parseHtml(sourcecode);
 
       imprintInformation = getImprintInformation(parsedHtml, imprintInformation);
       console.log("2:");
@@ -143,11 +148,11 @@ function App() {
         .then(data => {
           sourcecode = data;
         })
-      parsedHtml = parseHtml(sourcecode);
+      let parsedHtml = parseHtml(sourcecode);
       imprintInformation = getImprintInformation(parsedHtml, imprintInformation);
       console.log("3:");
       console.log(imprintInformation);
-    } */
+    } 
     setImprint(imprintInformation);
   }
 

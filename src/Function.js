@@ -1,6 +1,18 @@
 import { parse } from 'node-html-parser';
 import validator from 'validator';
-import { isImprintUrl, isImprintLink } from './Validator';
+
+import {
+    isImprintUrl,
+    isImprintLink,
+    isFilled,
+    isHref,
+} from './Validator';
+
+import {
+    formatText,
+    htmlDecode,
+    combineUrl
+} from './Helper';
 
 const taglist = ['a', 'div', 'table', 'p'];
 
@@ -90,92 +102,26 @@ export function getLinkFromChildNodeList(childNodes, found) {
     return [url, found];
 }
 
-export function formatText(text) {
-
-    //remove break lines
-    if (text.startsWith("\n")) {
-        let split = text.split("\n");
-        text = split[1];
-    }
-
-    //trim space
-    let trim = text.trim();
-    text = trim;
-    
-    return text;
-}
-
 export function parseHref(attrs) {
     let url = "";
     const arr = attrs.split(' ');
 
+    url = getHrefUrl(arr);
+
+    return url;
+}
+
+export function getHrefUrl(arr) {
+    let href = "";
+
     for (let i = 0; i < arr.length; i++) {
-        if (url !== "") { break; }
-        const text = arr[i];
-        if (text.startsWith("href=")) {
-            const s1 = text.split("href=");
-            const s2 = s1[s1.length - 1];
-
-            if (s2.startsWith("\"")) {
-                const s3 = s2.split("\"");
-                url = s3[s3.length - 2];
-                break;
-            }
-            if (s2.startsWith("\'")) {
-                const s3 = s2.split("\'");
-                url = s3[s3.length - 2];
-                break;
-            }
-            if (s2.startsWith("../")) {
-                const s3 = s2.split("../");
-                url = s3[s3.length - 1];
-                break;
-            }
-            url = s2;
+        if (href !== "") { break; }
+        let text = arr[i];
+        if (isHref(text)) {
+            href = formatText(text);
         }
     }
-    return url;
-}
-
-//get complete urllink to Imprint url
-export function combineUrl(strUrl, websiteUrl) {
-    if (strUrl.startsWith("http")) { return strUrl; }
-
-    let url = "";
-    let urlTemp = [];
-
-    let s1 = websiteUrl.split("\/");
-    let s2 = strUrl.split("\/");
-
-    for (let i = 0; i < s1.length; i++) {
-        if (s1[i] !== "") {
-            if (s1[i] === "http:" || s1[i] === "https:") {
-                urlTemp.push(s1[i] + "/");
-            }
-            else {
-                urlTemp.push(s1[i]);
-            }
-        }
-    }
-
-    let filter = s2.filter(function (el) {
-        return el != "";
-    });
-    s2 = filter;
-
-    for (let i = 0; i < s2.length; i++) {
-        urlTemp.push(s2[i]);
-    }
-
-    let arr = urlTemp;
-    urlTemp = removeDuplicates(arr);
-    url = urlTemp.join('/');
-
-    return url;
-}
-
-export function removeDuplicates(arr) {
-    return arr.filter((value, index) => arr.indexOf(value) === index);
+    return href;
 }
 
 export function getImprintInformation(sourcecode, imprint = {
@@ -207,52 +153,103 @@ export function getImprintInformation(sourcecode, imprint = {
             for (let k = 0; k < colEl.length; k++) {
 
                 //console.log(`Ist ${element} eine Email? - ${validator.isEmail(element)}`)
-
+                //console.log(colEl[k]);
                 if (colEl[k].startsWith("Postfach")) { break; }
 
                 if (colEl[k].startsWith('D-')) {
                     const arr = colEl[k];
                     const el = arr.split('D-');
-
+                    
                     if (validator.isPostalCode(el[1], 'DE') === true && imprint.Plz === "") {
                         imprint.Plz = htmlDecode(el[1]);
-                        imprint.Stadt = htmlDecode(colEl[k + 1]);
-                        imprint.Straße = htmlDecode(row[j - 1]);
+                        if (row[j].includes(el[1])&&row[j].includes(",")) {
+                            console.log(row[j]);
+                            const r = row[j];
+                            const rEl = r.split(",");
+                            imprint.Straße= htmlDecode(rEl[0]);
+
+                            console.log(rEl);
+                            let str = rEl[1].replace(colEl[k],"");
+                            let s = str.replace(rEl[0],"")
+                            console.log(s);
+                            imprint.Stadt = s.trim();
+                        }
+                        else {
+                            imprint.Straße = htmlDecode(row[j - 1]);
+                            imprint.Stadt = htmlDecode(row[j].replace(colEl[k], ""));
+                        }
+                        
                         break;
                     }
                 }
 
                 if (validator.isPostalCode(colEl[k], 'DE') === true && imprint.Plz === "") {
                     imprint.Plz = htmlDecode(colEl[k]);
-                    imprint.Stadt = htmlDecode(colEl[k + 1]);
-                    imprint.Straße = htmlDecode(row[j - 1]);
-                    break;
+                        if (row[j].includes(colEl[k])&&row[j].includes(",")) {
+                            console.log(row[j]);
+                            const r = row[j];
+                            const rEl = r.split(",");
+                            imprint.Straße= htmlDecode(rEl[0]);
+
+                            console.log(rEl);
+                            let str = rEl[1].replace(colEl[k],"");
+                            let s = str.replace(rEl[0],"")
+                            console.log(s);
+                            imprint.Stadt = s.trim();
+                        }
+                        else {
+                            imprint.Straße = htmlDecode(row[j - 1]);
+                            imprint.Stadt = htmlDecode(row[j].replace(colEl[k], ""));
+                        }
+                        
+                        break;
                 }
 
                 //manche telnummer fängt bei der zeile mit T an prüfe
-                if (validator.isIn(colEl[k], ["Tel:", "Tel.:", "tel:", "Tel.", "Telefon:", "Telefon", "phone:", "Phone:", "Phone", "Fon", "Fon:", "Servicenummer", "Telefonzentrale:", "Zentrale:"]) && imprint.Telefon === "") {
+                if (validator.isIn(colEl[k], ["T", "Tel:", "Tel.:", "tel:", "Tel.", "Telefon:", "Telefon", "phone:", "Phone:", "Phone", "Fon", "Fon:", "Servicenummer", "Telefonzentrale:", "Zentrale:"]) && imprint.Telefon === "") {
                     const r = row[j];
                     const rEl = r.split(colEl[k]);
-                    imprint.Telefon = htmlDecode(rEl[1]);
+
+                    let temp = rEl[1];
+                    let str = temp.replace(/[^\d\+]/g, "");
+                    imprint.Telefon = htmlDecode(str.trim());
                     break;
                 }
 
-                if (validator.isIn(colEl[k], ["Fax:", "fax:", "Fax", "Telefax", "Telefax:"]) && imprint.Fax === "") {
+                if (validator.isIn(colEl[k], ["F", "Fax:", "Fax.", "fax:", "Fax", "Telefax", "Telefax:"]) && imprint.Fax === "") {
                     const r = row[j];
                     const rEl = r.split(colEl[k]);
-                    imprint.Fax = htmlDecode(rEl[1]);
+
+                    let temp = rEl[1];
+                    let str = temp.replace(/[^\d\+]/g, "");
+                    imprint.Fax = htmlDecode(str.trim());
                     break;
                 }
 
                 //problem wegen fax er geht in beide rein
                 if (colEl[k].startsWith('+49') && imprint.Telefon === "") {
-                    imprint.Telefon = htmlDecode(row[j]);
+                    let temp = row[j];
+                    let str = temp.replace(/[^\d\+]/g, "");
+                    imprint.Telefon = htmlDecode(str.trim());
                     break;
                 }
 
-                if (colEl[k].startsWith('+49') === true && imprint.Fax === "" && imprint.Telefon !== "" && imprint.Telefon !== colEl[k]) {
-                    imprint.Fax = htmlDecode(row[j]);
-                    break;
+                if (colEl[k].startsWith('+49') === true && imprint.Fax === "" && imprint.Telefon !== "") {
+                    const r = row[j];
+                    const rEl = r.split(/[:.]/g);
+
+                    let temp = row[j];
+                    let str = temp.replace(/[^\d\+]/g, "");
+
+                    let num = str.trim();
+                    if (rEl.length > 1) {
+                        num = rEl[1].trim();
+                    }
+
+                    if (imprint.Telefon !== num) {
+                        imprint.Fax = htmlDecode(num);
+                        break;
+                    }
                 }
 
                 if (colEl[k].includes("(at)")) {
@@ -309,7 +306,7 @@ export function getImprintInformation(sourcecode, imprint = {
                 const hrefList = rawAttrs[j];
                 if (hrefList.startsWith('href="mailto:')) {
                     console.log(hrefList);
-                    const href = hrefList.split('\"');
+                    const href = hrefList.split('"');
                     console.log(href[1]);
                     const possibleEmail = href[1].split('mailto:');
                     console.log(possibleEmail[1]);
@@ -320,28 +317,4 @@ export function getImprintInformation(sourcecode, imprint = {
     }
     console.log(imprint);
     return imprint;
-}
-
-export function isFilled(imprint) {
-    if (
-        imprint.Straße !== "" &&
-        imprint.Plz !== "" &&
-        imprint.Stadt !== "" &&
-        imprint.Telefon !== "" &&
-        imprint.Fax !== "" &&
-        imprint.Email !== ""
-    ) {
-        console.log("ALL FILLED");
-        return true;
-    }
-    return false;
-}
-
-export function htmlDecode(text) {
-    let doc = new DOMParser().parseFromString(text, "text/html");
-    return doc.documentElement.textContent;
-}
-
-export function getEmailAddress(email) {
-
 }
